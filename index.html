@@ -1,0 +1,559 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<title>TOOL THIÊN TRẦN</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { height: 100%; }
+  body {
+    background: #0a0a0a; color: #d0d0d0;
+    font-family: 'Courier New', monospace; padding: 20px;
+    position: relative; overflow-x: hidden;
+  }
+
+  #hexbg {
+    position: fixed; inset: 0; z-index: 0;
+    color: #ff2d55; opacity: 0.06;
+    font-size: 11px; line-height: 1.4;
+    white-space: pre; overflow: hidden;
+    pointer-events: none; user-select: none;
+    font-family: 'Courier New', monospace;
+  }
+  .wrap { position: relative; z-index: 1; }
+
+  .header {
+    display: flex; align-items: center; gap: 16px;
+    margin-bottom: 20px; padding-bottom: 16px;
+    border-bottom: 1px solid #2a2a2a;
+  }
+  .header .gif {
+    width: 64px; height: 64px; object-fit: cover;
+    border: 1px solid #ff2d55; border-radius: 6px;
+    background: #141414;
+  }
+  .header .title {
+    font-size: 22px; font-weight: bold; color: #ff2d55;
+    letter-spacing: 3px; text-transform: uppercase;
+  }
+  .header .sub { font-size: 11px; color: #555; letter-spacing: 1px; margin-top: 4px; }
+
+  .tabs { display: flex; gap: 8px; margin-bottom: 16px; }
+  .tab {
+    padding: 10px 20px; background: #141414; border: 1px solid #2a2a2a;
+    color: #666; cursor: pointer; font-family: inherit; font-size: 13px;
+    transition: all .15s;
+  }
+  .tab.active { background: #ff2d55; color: #000; border-color: #ff2d55; font-weight: bold; }
+  .tab:hover:not(.active) { border-color: #ff2d55; color: #ff2d55; }
+
+  .panel { display: none; }
+  .panel.active { display: block; }
+
+  .dropzone {
+    border: 2px dashed #2a2a2a; padding: 40px; text-align: center;
+    color: #555; cursor: pointer; transition: all .15s; margin-bottom: 16px;
+  }
+  .dropzone:hover, .dropzone.drag { border-color: #ff2d55; color: #ff2d55; background: #141414; }
+  .dropzone input { display: none; }
+
+  .info { background: #141414; padding: 12px; margin-bottom: 16px; border-left: 3px solid #ff2d55; font-size: 12px; }
+  .info span { color: #ff2d55; }
+
+  .toolbar { display: flex; gap: 8px; margin-bottom: 12px; flex-wrap: wrap; align-items: center; }
+  button {
+    padding: 8px 16px; background: #141414; border: 1px solid #2a2a2a;
+    color: #d0d0d0; cursor: pointer; font-family: inherit; font-size: 12px;
+    transition: all .15s;
+  }
+  button:hover { border-color: #ff2d55; color: #ff2d55; }
+  button.primary { background: #ff2d55; color: #000; border-color: #ff2d55; font-weight: bold; }
+  button.primary:hover { background: #ff4066; }
+  button:disabled { opacity: .4; cursor: not-allowed; }
+  button:disabled:hover { border-color: #2a2a2a; color: #d0d0d0; }
+
+  /* virtual scroll cho viewer */
+  .viewer-shell {
+    position: relative; background: #000;
+    border: 1px solid #2a2a2a; height: 460px; overflow: auto;
+  }
+  .viewer-spacer { position: relative; }
+  .viewer-content {
+    position: absolute; top: 0; left: 0; right: 0;
+    padding: 8px 12px; font-size: 12px; line-height: 1.5;
+    white-space: pre; color: #888; will-change: transform;
+  }
+  .viewer-content .addr { color: #444; user-select: none; }
+  .viewer-content .hex { color: #4af; }
+  .viewer-content .ascii { color: #aaa; }
+  .viewer-content .str { color: #3f3; }
+  .viewer-content .off { color: #444; user-select: none; }
+  .empty { padding: 12px; color: #666; }
+
+  .log {
+    background: #000; border: 1px solid #2a2a2a; padding: 12px;
+    height: 200px; overflow: auto; font-size: 12px; color: #888;
+    margin-top: 12px;
+  }
+  .log .ok { color: #3f3; }
+  .log .err { color: #ff2d55; }
+  .log .warn { color: #fa3; }
+  .section-label { margin: 16px 0 8px; color: #ff2d55; font-size: 12px; }
+
+  .progress {
+    height: 3px; background: #141414; margin-bottom: 12px; overflow: hidden; display: none;
+  }
+  .progress.show { display: block; }
+  .progress .bar { height: 100%; width: 0; background: #ff2d55; transition: width .1s; }
+  .search { padding: 8px; background: #000; border: 1px solid #2a2a2a; color: #d0d0d0; font-family: inherit; font-size: 12px; width: 200px; }
+  .search:focus { outline: none; border-color: #ff2d55; }
+</style>
+</head>
+<body>
+
+<div id="hexbg"></div>
+
+<div class="wrap">
+  <div class="header">
+    <img class="gif" src="https://media.giphy.com/media/3o7TKSjRrfIPjeiVyM/giphy.gif" alt="gif"
+         onerror="this.style.display='none'">
+    <div>
+      <div class="title">TOOL THIÊN TRẦN</div>
+      <div class="sub">// vex build // upload · view · inject</div>
+    </div>
+  </div>
+
+  <div class="tabs">
+    <div class="tab active" data-tab="1">tab 1 // xem code</div>
+    <div class="tab" data-tab="2">tab 2 // bơm code aim bụng</div>
+  </div>
+
+  <!-- TAB 1 -->
+  <div class="panel active" id="panel-1">
+    <div class="dropzone" id="dz1">
+      <input type="file" id="file1" accept=".bin,.so,.dll,.exe">
+      <div>drop .bin / .so ở đây hoặc click // max 200MB</div>
+    </div>
+    <div class="info" id="info1" style="display:none"></div>
+    <div class="toolbar">
+      <button data-view="hex">hex view</button>
+      <button data-view="ascii">ascii</button>
+      <button data-view="strings">strings</button>
+      <input class="search" id="search1" placeholder="search strings...">
+      <button id="dl1" disabled>download raw</button>
+    </div>
+    <div class="progress" id="prog1"><div class="bar" id="bar1"></div></div>
+    <div class="viewer-shell" id="shell1">
+      <div class="empty">// chưa có file. upload đi nerd.</div>
+    </div>
+  </div>
+
+  <!-- TAB 2 -->
+  <div class="panel" id="panel-2">
+    <div class="dropzone" id="dz2">
+      <input type="file" id="file2" accept=".bin,.so,.dll,.exe">
+      <div>drop file để bơm code // .bin / .so</div>
+    </div>
+    <div class="info" id="info2" style="display:none"></div>
+
+    <div class="section-label">// bơm code aim bụng</div>
+    <div class="toolbar">
+      <button class="primary" id="inject-btn" disabled>bơm code</button>
+      <button id="dl2" disabled>download file đã chỉnh sửa</button>
+    </div>
+    <div class="log" id="log2">// log sẽ hiện ở đây</div>
+  </div>
+</div>
+
+<script>
+/* =========================================================
+   MODULE: HexBackground — nền hex chạy, dùng rAF + throttle
+   ========================================================= */
+const HexBackground = (() => {
+  const el = document.getElementById('hexbg');
+  const LINES = 70, COLS = 64;
+  const rows = [];
+  const HEX = '0123456789abcdef';
+  const randByte = () => HEX[(Math.random()*16)|0] + HEX[(Math.random()*16)|0];
+  const makeLine = () => {
+    let s = '';
+    for (let c = 0; c < COLS; c++) s += randByte() + ' ';
+    return s;
+  };
+  for (let i = 0; i < LINES; i++) rows.push(makeLine());
+  el.textContent = rows.join('\n');
+
+  let last = 0, acc = 0, raf = null;
+  const INTERVAL = 80; // ms
+  function frame(t) {
+    if (!last) last = t;
+    acc += t - last; last = t;
+    if (acc >= INTERVAL) {
+      acc = 0;
+      rows.shift();
+      rows.push(makeLine());
+      el.textContent = rows.join('\n');
+    }
+    raf = requestAnimationFrame(frame);
+  }
+  raf = requestAnimationFrame(frame);
+
+  document.addEventListener('visibilitychange', () => {
+    if (document.hidden) { cancelAnimationFrame(raf); raf = null; }
+    else if (!raf) { last = 0; raf = requestAnimationFrame(frame); }
+  });
+})();
+
+/* =========================================================
+   MODULE: Bus — event bus nhỏ, tách coupling
+   ========================================================= */
+const Bus = (() => {
+  const map = new Map();
+  return {
+    on(ev, fn) { (map.get(ev) || map.set(ev, []).get(ev)).push(fn); },
+    emit(ev, data) { (map.get(ev) || []).forEach(fn => fn(data)); }
+  };
+})();
+
+/* =========================================================
+   MODULE: HexWorker — render hex/ascii/strings off-main-thread
+   ========================================================= */
+const HexWorker = (() => {
+  const src = `
+    self.onmessage = (e) => {
+      const { id, mode, buffer, start, end } = e.data;
+      const buf = new Uint8Array(buffer, start, end - start);
+      const out = [];
+      if (mode === 'hex') {
+        for (let i = 0; i < buf.length; i += 16) {
+          const c = buf.subarray(i, i + 16);
+          let hex = '', ascii = '';
+          for (const b of c) {
+            hex += b.toString(16).padStart(2,'0') + ' ';
+            ascii += (b >= 32 && b < 127) ? String.fromCharCode(b) : '.';
+          }
+          out.push({ off: start + i, hex, ascii });
+        }
+      } else if (mode === 'strings') {
+        let cur = '', s = 0;
+        for (let i = 0; i < buf.length; i++) {
+          const b = buf[i];
+          if (b >= 32 && b < 127) { if (!cur) s = i; cur += String.fromCharCode(b); }
+          else { if (cur.length >= 4) out.push({ off: start + s, s: cur }); cur = ''; }
+        }
+        if (cur.length >= 4) out.push({ off: start + s, s: cur });
+      }
+      self.postMessage({ id, out });
+    };
+  `;
+  const url = URL.createObjectURL(new Blob([src], { type: 'application/javascript' }));
+  const w = new Worker(url);
+  let seq = 0;
+  const pending = new Map();
+  w.onmessage = e => {
+    const { id, out } = e.data;
+    const p = pending.get(id);
+    if (p) { p.resolve(out); pending.delete(id); }
+  };
+  return {
+    run(mode, buffer, start, end) {
+      return new Promise(resolve => {
+        const id = ++seq;
+        pending.set(id, { resolve });
+        w.postMessage({ id, mode, buffer, start, end }, [buffer.slice(start, end)]);
+        // lưu ý: transfer buffer copy để không detach buffer gốc
+      });
+    },
+    // dùng bản không transfer để giữ buffer gốc
+    runCopy(mode, buffer, start, end) {
+      return new Promise(resolve => {
+        const id = ++seq;
+        pending.set(id, { resolve });
+        const slice = buffer.slice(start, end);
+        w.postMessage({ id, mode, buffer: slice.buffer, start: 0, end: slice.length });
+      });
+    }
+  };
+})();
+
+/* =========================================================
+   MODULE: VirtualList — virtual scroll render cho file lớn
+   ========================================================= */
+class VirtualList {
+  constructor(shell, rowHeight, renderRow, totalRows) {
+    this.shell = shell;
+    this.rowH = rowHeight;
+    this.renderRow = renderRow;
+    this.totalRows = totalRows;
+    this.spacer = document.createElement('div');
+    this.spacer.className = 'viewer-spacer';
+    this.content = document.createElement('div');
+    this.content.className = 'viewer-content';
+    this.spacer.appendChild(this.content);
+    shell.innerHTML = '';
+    shell.appendChild(this.spacer);
+    this.spacer.style.height = (totalRows * rowHeight) + 'px';
+
+    this.start = 0; this.end = 0;
+    this._onScroll = () => this.update();
+    shell.addEventListener('scroll', this._onScroll, { passive: true });
+    this.update();
+  }
+  update() {
+    const st = this.shell.scrollTop;
+    const vh = this.shell.clientHeight;
+    const first = Math.max(0, Math.floor(st / this.rowH) - 5);
+    const last  = Math.min(this.totalRows, Math.ceil((st + vh) / this.rowH) + 5);
+    if (first === this.start && last === this.end) return;
+    this.start = first; this.end = last;
+    const frag = document.createDocumentFragment();
+    for (let r = first; r < last; r++) {
+      const line = this.renderRow(r);
+      if (line) frag.appendChild(line);
+    }
+    this.content.innerHTML = '';
+    this.content.appendChild(frag);
+    this.content.style.transform = `translateY(${first * this.rowH}px)`;
+  }
+  destroy() {
+    this.shell.removeEventListener('scroll', this._onScroll);
+    this.shell.innerHTML = '';
+  }
+}
+
+/* =========================================================
+   MODULE: State
+   ========================================================= */
+const State = {
+  buf1: null, name1: null,
+  buf2: null, name2: null,
+  patched: null,
+  view1: null,   // VirtualList instance
+  mode1: 'hex',
+  strings1: null
+};
+
+const $ = id => document.getElementById(id);
+
+/* =========================================================
+   MODULE: Tabs
+   ========================================================= */
+(function Tabs() {
+  document.querySelectorAll('.tab').forEach(t => {
+    t.onclick = () => {
+      document.querySelectorAll('.tab').forEach(x => x.classList.remove('active'));
+      document.querySelectorAll('.panel').forEach(x => x.classList.remove('active'));
+      t.classList.add('active');
+      $('panel-' + t.dataset.tab).classList.add('active');
+    };
+  });
+})();
+
+/* =========================================================
+   MODULE: Dropzone — dùng chung, có debounce drag
+   ========================================================= */
+function wireDrop(dzId, inputId, onFile) {
+  const dz = $(dzId), input = $(inputId);
+  dz.onclick = e => { if (e.target !== input) input.click(); };
+  input.onchange = () => input.files[0] && onFile(input.files[0]);
+  let dc = null;
+  dz.ondragover = e => { e.preventDefault(); clearTimeout(dc); dz.classList.add('drag'); };
+  dz.ondragleave = () => { dc = setTimeout(() => dz.classList.remove('drag'), 60); };
+  dz.ondrop = e => {
+    e.preventDefault(); clearTimeout(dc); dz.classList.remove('drag');
+    const f = e.dataTransfer.files[0]; if (f) onFile(f);
+  };
+}
+
+/* =========================================================
+   MODULE: FileInfo
+   ========================================================= */
+function renderInfo(id, f, buf) {
+  const el = $(id);
+  el.style.display = 'block';
+  el.innerHTML = `<span>${f.name}</span> // ${f.size} bytes // magic: <span>${magic(buf)}</span>`;
+}
+function magic(b) {
+  const h = [...b.slice(0,4)].map(x=>x.toString(16).padStart(2,'0')).join(' ');
+  if (b[0]===0x7f && b[1]===0x45) return 'ELF ('+h+')';
+  if (b[0]===0x4d && b[1]===0x5a) return 'PE/MZ ('+h+')';
+  return h;
+}
+
+/* =========================================================
+   MODULE: Progress
+   ========================================================= */
+const Progress = {
+  show(id) { const p = $(id); p.classList.add('show'); },
+  hide(id) { $(id).classList.remove('show'); },
+  set(id, pct) { const b = $(id).querySelector('.bar'); b.style.width = Math.max(0, Math.min(100, pct)) + '%'; }
+};
+
+/* =========================================================
+   MODULE: HexViewer — render virtual + worker cho strings
+   ========================================================= */
+const HexViewer = {
+  async load(buf) {
+    Progress.show('prog1');
+    Progress.set('bar1', 0);
+    const shell = $('shell1');
+    if (State.view1) { State.view1.destroy(); State.view1 = null; }
+
+    if (State.mode1 === 'strings') return this.loadStrings(buf);
+
+    // hex hoặc ascii: dùng worker để parse từng chunk
+    const CHUNK = 64 * 1024;
+    const totalRows = Math.ceil(buf.length / 16);
+    const rowCache = new Map();
+
+    const renderRow = r => {
+      const line = document.createElement('div');
+      const off = r * 16;
+      const el = document.createElement('span');
+      el.innerHTML = `<span class="addr">${off.toString(16).padStart(8,'0')}</span>  `;
+      if (State.mode1 === 'ascii') {
+        const c = buf.subarray(off, off + 16);
+        let a = '';
+        for (const b of c) a += (b>=32&&b<127)?String.fromCharCode(b):(b===10?' ':'·');
+        el.innerHTML += `<span class="ascii">${esc(a)}</span>`;
+      } else {
+        const c = buf.subarray(off, off + 16);
+        let hex = '', ascii = '';
+        for (const b of c) { hex += b.toString(16).padStart(2,'0') + ' '; ascii += (b>=32&&b<127)?String.fromCharCode(b):'.'; }
+        el.innerHTML += `<span class="hex">${hex.padEnd(47)}</span>  <span class="ascii">${esc(ascii)}</span>`;
+      }
+      line.appendChild(el);
+      return line;
+    };
+
+    State.view1 = new VirtualList(shell, 18, renderRow, totalRows);
+    Progress.set('bar1', 100);
+    Progress.hide('prog1');
+  },
+
+  async loadStrings(buf) {
+    const shell = $('shell1');
+    Progress.show('prog1');
+    Progress.set('bar1', 20);
+    const CHUNK = 4 * 1024 * 1024;
+    let all = [];
+    for (let off = 0; off < buf.length; off += CHUNK) {
+      const end = Math.min(buf.length, off + CHUNK);
+      const part = await HexWorker.runCopy('strings', buf, off, end);
+      all = all.concat(part);
+      Progress.set('bar1', 20 + (end / buf.length) * 70);
+    }
+    State.strings1 = all;
+    this.renderStrings(all);
+    Progress.set('bar1', 100);
+    Progress.hide('prog1');
+  },
+
+  renderStrings(list) {
+    const shell = $('shell1');
+    if (State.view1) { State.view1.destroy(); State.view1 = null; }
+    if (!list.length) { shell.innerHTML = '<div class="empty">// không thấy string nào >= 4 ký tự.</div>'; return; }
+    const renderRow = r => {
+      const it = list[r];
+      if (!it) return null;
+      const line = document.createElement('div');
+      line.innerHTML = `<span class="addr">0x${it.off.toString(16).padStart(8,'0')}</span>  <span class="str">${esc(it.s)}</span>`;
+      return line;
+    };
+    State.view1 = new VirtualList(shell, 18, renderRow, list.length);
+  },
+
+  filterStrings(q) {
+    if (!State.strings1) return;
+    const ql = q.toLowerCase();
+    const filtered = ql
+      ? State.strings1.filter(x => x.s.toLowerCase().includes(ql))
+      : State.strings1;
+    this.renderStrings(filtered);
+  }
+};
+
+const esc = s => s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+
+/* =========================================================
+   WIRING: tab1
+   ========================================================= */
+wireDrop('dz1','file1', async f => {
+  if (f.size > 200*1024*1024) return alert('file > 200MB. chia nhỏ đi.');
+  State.buf1 = new Uint8Array(await f.arrayBuffer());
+  State.name1 = f.name;
+  State.strings1 = null;
+  renderInfo('info1', f, State.buf1);
+  $('dl1').disabled = false;
+  await HexViewer.load(State.buf1);
+});
+
+document.querySelectorAll('[data-view]').forEach(b => {
+  b.onclick = async () => {
+    if (!State.buf1) return;
+    State.mode1 = b.dataset.view;
+    if (State.mode1 !== 'strings') State.strings1 = null;
+    await HexViewer.load(State.buf1);
+  };
+});
+
+$('search1').oninput = debounce(e => {
+  if (State.mode1 === 'strings') HexViewer.filterStrings(e.target.value);
+}, 200);
+
+$('dl1').onclick = () => State.buf1 && dl(State.buf1, State.name1);
+
+/* =========================================================
+   WIRING: tab2 (bơm code aim bụng)
+   ========================================================= */
+wireDrop('dz2','file2', async f => {
+  if (f.size > 200*1024*1024) return log('file > 200MB. sybau.','err');
+  State.buf2 = new Uint8Array(await f.arrayBuffer());
+  State.name2 = f.name;
+  State.patched = null;
+  renderInfo('info2', f, State.buf2);
+  $('inject-btn').disabled = false;
+  $('dl2').disabled = true;
+  log('loaded ' + f.name + ' // ' + f.size + ' bytes','ok');
+});
+
+const PATCH = {
+  OFFSET: -1,   // <- offset thật (placeholder)
+  BYTES: [],    // <- byte thật (placeholder)
+  MAX_LEN: 64
+};
+
+$('inject-btn').onclick = () => {
+  if (!State.buf2) return log('chưa upload file.','err');
+  log('bơm code aim bụng...','warn');
+
+  const out = new Uint8Array(State.buf2); // giữ nguyên dung lượng
+  let changed = 0;
+
+  if (PATCH.OFFSET >= 0 && PATCH.BYTES.length > 0) {
+    const o = PATCH.OFFSET;
+    const len = Math.min(PATCH.BYTES.length, PATCH.MAX_LEN, out.length - o);
+    if (o >= out.length) {
+      log('offset ngoài range.','err');
+    } else {
+      for (let i = 0; i < len; i++) {
+        if (out[o+i] !== PATCH.BYTES[i]) changed++;
+        out[o+i] = PATCH.BYTES[i];
+      }
+      log(`patch @0x${o.toString(16)} // ${len} bytes // ${changed} diff`,'ok');
+    }
+  } else {
+    log('PATCH.OFFSET chưa set -> no-op, giữ nguyên file.','warn');
+  }
+
+  State.patched = out;
+  $('dl2').disabled = false;
+  log(`in:  ${State.buf2.length} bytes`,'ok');
+  log(`out: ${out.length} bytes`,'ok');
+  log(out.length === State.buf2.length ? 'dung lượng giữ nguyên ✔' : 'dung lượng lệch','warn');
+};
+
+$('dl2').onclick = () => {
+  if (!State.patched) return log('chưa bơm gì.','err');
+  dl(State.patched, State.name2 || 'output.bin');
+ 
